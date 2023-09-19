@@ -7,4 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 add_executable(LearnCpp
     src/main.cc
     src/rvo.cc
+    src/coroutine.cc
+    src/tasks.cc
 )
