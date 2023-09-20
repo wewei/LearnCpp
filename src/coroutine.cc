@@ -10,6 +10,7 @@ struct ReturnObject {
     std::suspend_never initial_suspend() { return {}; }
     std::suspend_never final_suspend() noexcept { return {}; }
     void unhandled_exception() {}
+    void return_void() {}
   };
 };
 
