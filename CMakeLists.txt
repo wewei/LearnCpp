@@ -9,4 +9,5 @@ add_executable(LearnCpp
     src/rvo.cc
     src/coroutine.cc
     src/tasks.cc
+    src/tasks2.cc
 )
