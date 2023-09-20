@@ -76,6 +76,11 @@ Task<Err, ValT> operator >> (Task<Err, ValF> taskF, std::function<Task<Err, ValT
 }
 
 template <typename Err, typename Val>
+Task<Err, Val> operator | (Task<Err, Val> task1, Task<Err, Val> task2) {
+    return either(task1, task2);
+}
+
+template <typename Err, typename Val>
 std::function<Task<Err, Val>(Val)> delay(TimeoutRunner &runner, int ms) {
     return [=, &runner](Val value) {
         return [=, &runner](auto _, auto resolve) {
@@ -208,7 +213,11 @@ void TasksDemo::run() {
     // );
 
     auto task1 =
-        resolveWith<const char *, int>(123)
+        ( withDelay<const char *, int>(runner, 1000, rejectWith<const char *, int>("Failed 1st time"))
+        | withDelay<const char *, int>(runner, 1000, rejectWith<const char *, int>("Failed 2nd time"))
+        | withDelay<const char *, int>(runner, 1000, rejectWith<const char *, int>("Failed 3rd time"))
+        | withDelay<const char *, int>(runner, 1000, resolveWith<const char *, int>(123))
+        )
             >> delay<const char *, int>(runner, 1000)
             >> tap<const char *, int>([](int val) { threadLog("Hello 1"); })
             >> delay<const char *, int>(runner, 1000)
