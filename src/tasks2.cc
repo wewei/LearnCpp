@@ -7,23 +7,23 @@
 #include <thread>
 #include "./tasks2.h"
 
-#define DefineBindOperator(m)                           \
-template <typename a, typename b>                       \
-m<b> operator >> (m<a> ma, std::function<m<b>(a)> f) {  \
-    return Monad<m>::mbind(ma, f);                      \
+#define DefineBindOperator(M)                           \
+template <typename T, typename U>                       \
+M<U> operator >> (M<T> ma, std::function<M<U>(T)> f) {  \
+    return Monad<M>::mbind(ma, f);                      \
 }                                                       \
 
 
-template <template <typename> class m, typename a, typename b>
-using binder_t = std::function<m<b>(a)>;
+template <template <typename> class M, typename T, typename U>
+using binder_t = std::function<M<U>(T)>;
 
-template <template <typename> class m>
+template <template <typename> class M>
 struct Monad {
-    template <typename a>
-    static m<a> mreturn(a);
+    template <typename T>
+    static M<T> mreturn(T);
 
-    template <typename a, typename b>
-    static m<b> mbind(m<a>, binder_t<m, a, b>);
+    template <typename T, typename U>
+    static M<U> mbind(M<T>, binder_t<M, T, U>);
 };
 
 template <typename T>
@@ -36,10 +36,10 @@ struct Monad<Task> {
         return [t](auto callback) { callback(t); };
     }
 
-    template <typename a, typename b>
-    static Task<b> mbind(Task<a> task, binder_t<Task, a, b> f) {
+    template <typename T, typename U>
+    static Task<U> mbind(Task<T> task, binder_t<Task, T, U> f) {
         return [task, f](auto callback) {
-            task([f, callback](a va) { f(va)(callback); });
+            task([f, callback](T va) { f(va)(callback); });
         };
     }
 };
@@ -56,8 +56,8 @@ bool operator ! (std::variant<Args ...> var) {
     return var.index() == 0;
 }
 
-template <rejectable a>
-Task<a> operator | (Task<a> t1, Task<a> t2) {
+template <rejectable T>
+Task<T> operator | (Task<T> t1, Task<T> t2) {
     return [=](auto callback) {
         t1([=](auto v1) {
             if (!v1) {
@@ -74,10 +74,19 @@ typedef std::function<void(int, std::function<void()>)> timeout_t;
 
 template <typename T>
 binder_t<Task, T, T> delay(timeout_t timeout, int ms) {
-    return [=](T t) {
-        return [=](auto callback) {
+    return [timeout, ms](T t) {
+        return [timeout, ms, t](auto callback) {
             timeout(ms, [=]() { callback(t); });
         };
+    };
+}
+
+template <typename T>
+Task<T> delayed(timeout_t timeout, int ms, Task<T> task) {
+    return [timeout, ms, task](auto callback) {
+        timeout(ms, [task, callback]() {
+            task(callback);
+        });
     };
 }
 
@@ -139,12 +148,23 @@ void Tasks2Demo::run() {
     timeout_t timeout = [&runner](int ms, std::function<void()> callback) {
         runner.timeout(ms, callback);
     };
+
+    // Sequenced
     auto t3 = Monad<Task>::mreturn(10)
         >> delay<int>(timeout, 1000)
         >> tap<int>(threadLog<int>)
         >> delay<int>(timeout, 1000);
 
     t3(threadLog<int>);
+
+    // Retries
+    auto t4 = (Monad<Task>::mreturn(0) >> tap<int>(threadLog<int>))
+            | (delayed(timeout, 1000, Monad<Task>::mreturn(0)) >> tap<int>(threadLog<int>))
+            | (delayed(timeout, 2000, Monad<Task>::mreturn(0)) >> tap<int>(threadLog<int>))
+            | (delayed(timeout, 4000, Monad<Task>::mreturn(0)) >> tap<int>(threadLog<int>))
+            | (delayed(timeout, 8000, Monad<Task>::mreturn(6)) >> tap<int>(threadLog<int>));
+
+    t4(threadLog<int>);
 
     runner.join();
 }
