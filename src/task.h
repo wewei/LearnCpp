@@ -10,6 +10,8 @@ using TaskCallback = Handler<Handler<T>>;
 template <typename T>
 using Delayer = std::function<Handler<T>(int, Handler<T>)>;
 
+typedef std::function<void(int, std::function<void()>)> DelayedRunner;
+
 template <typename T>
 class Task {
 public:
@@ -44,13 +46,19 @@ public:
         });
     }
 
-    Task<T> DelayedFor(Delayer<Handler<T>> delayer, int ms) const {
-        return Task<T>(delayer(ms, callback_));
+    Task<T> DelayedFor(DelayedRunner runner, int ms) const {
+        return Task<T>([callback_ = this->callback_, runner, ms](Handler<T> handler) {
+            runner(ms, [callback_, handler]() {
+                callback_(handler);
+            });
+        });
     }
 
-    Task<T> ThenDelayFor(Delayer<Handler<T>> delayer, int ms) const {
-        return Then<T>([delayer, ms](T t) {
-            return Task<T>::Resolve(t).DelayedFor(delayer, ms);
+    Task<T> ThenDelayFor(DelayedRunner runner, int ms) const {
+        return Task<T>([callback_ = this->callback_, runner, ms](Handler<T> handler) {
+            callback_([runner, ms, handler](T t) {
+                runner(ms, [handler, t]() { handler(t); });
+            });
         });
     }
 
