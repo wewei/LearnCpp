@@ -24,7 +24,7 @@ public:
     // Constructors
     Task(TaskCallback<T> callback): callback_(callback) { }
 
-    void run(Handler<T> handler) const {
+    void Run(Handler<T> handler) const {
         callback_(handler);
     }
 
@@ -35,7 +35,7 @@ public:
     template <typename U>
     Task<U> Then(Binder<U> binder) const {
         return Task<U>([callback_=this->callback_, binder](Handler<U> handler) {
-            callback_([binder, handler](T t) { binder(t).run(handler); });
+            callback_([binder, handler](T t) { binder(t).Run(handler); });
         });
     }
 
