@@ -13,7 +13,7 @@ void Tasks3Demo::run() {
     auto task0 = Task<int>::Resolve(1);
 
     threadLog("Run task0");
-    task0.run(threadLog<int>);
+    task0.Run(threadLog<int>);
 
     // Task 1
     auto task1 = Task<int>([](Handler<int> handler) {
@@ -22,19 +22,19 @@ void Tasks3Demo::run() {
     });
 
     threadLog("Run task1");
-    task1.run(threadLog<int>);
+    task1.Run(threadLog<int>);
 
     // Task 2
     auto task2 = task1.DelayedFor(runner, 1000);
 
     threadLog("Run task2");
-    task2.run(threadLog<int>);
+    task2.Run(threadLog<int>);
 
     // Task 3
     auto task3 = task1.ThenDelayFor(runner, 2000);
 
     threadLog("Run task3");
-    task3.run(threadLog<int>);
+    task3.Run(threadLog<int>);
 
     // Retries
     auto task4 = Task<int>([](Handler<int> handler) {
@@ -49,7 +49,7 @@ void Tasks3Demo::run() {
 
     auto task6 = task4.Or(task5);
 
-    task6.run(threadLog<int>);
+    task6.Run(threadLog<int>);
 
     // Join all threads
     threadedRunner.join();
