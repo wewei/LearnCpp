@@ -90,6 +90,37 @@ Task<T> delayed(timeout_t timeout, int ms, Task<T> task) {
     };
 }
 
+template <rejectable T>
+Task<T> race(Task<T> task1, Task<T> task2) {
+    int state1 = 0;
+    int state2 = 0;
+    return [=](auto callback) mutable {
+        task1([=, &state1, &state2](T t) mutable {
+            if (state1 != 0 || state2 > 0) {
+                return;
+            }
+            if (state2 < 0 || !!t) {
+                state1 = !t ? -1 : 1;
+                callback(t);
+            }
+        });
+        task2([=, &state1, &state2](T t) mutable {
+            if (state2 != 0 || state1 > 0) {
+                return;
+            }
+            if (state1 < 0 || !!t) {
+                state2 = !t ? -1 : 1;
+                callback(t);
+            }
+        });
+    };
+}
+
+template <rejectable T, rejectable U>
+Task<std::pair<T, U>> both(Task<T> task1, Task<U> task2) {
+
+}
+
 template <typename T>
 binder_t<Task, T, T> tap(std::function<void(T)> callback) {
     return [=](T t) {
@@ -165,6 +196,15 @@ void Tasks2Demo::run() {
             | (delayed(timeout, 8000, Monad<Task>::mreturn(6)) >> tap<int>(threadLog<int>));
 
     t4(threadLog<int>);
+
+    // Races
+    auto t5 = delayed(timeout, 1000, Monad<Task>::mreturn(7)) >> tap<int>(threadLog<int>);
+    auto t6 = delayed(timeout, 500, Monad<Task>::mreturn(0)) >> tap<int>(threadLog<int>);
+    auto t7 = race(t5, t6);
+
+    t7([](int x) {
+        threadLog("Result of t7", x);
+    });
 
     runner.join();
 }
