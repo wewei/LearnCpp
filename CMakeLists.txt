@@ -10,4 +10,6 @@ add_executable(LearnCpp
     src/coroutine.cc
     src/tasks.cc
     src/tasks2.cc
+    src/tasks3.cc
+    src/threaded-runner.cc
 )

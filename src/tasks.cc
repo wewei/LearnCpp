@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <variant>
 #include "./tasks.h"
+#include "./thread-log.h"
 
 template <typename T>
 using Handler = std::function<void(T)>;
@@ -148,14 +149,6 @@ std::function<Task<Err, Val>(Val)> tap(std::function<void(Val)> callback) {
 // }
 
 // Test utilities
-template <typename Arg, typename ...Args>
-void threadLog(Arg&& arg, Args&&... args) {
-    std::cout << "[Thread " << std::this_thread::get_id() << "]: ";
-    std::cout << std::forward<Arg>(arg);
-    ((std::cout << ", " << std::forward<Args>(args)), ...);
-    std::cout << std::endl;
-}
-
 class ThreadRunner : public TimeoutRunner {
 private:
     std::vector<std::thread> threads;

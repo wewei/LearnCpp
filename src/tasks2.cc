@@ -5,26 +5,9 @@
 
 #include <iostream>
 #include <thread>
+#include "./monad.h"
 #include "./tasks2.h"
-
-#define DefineBindOperator(M)                           \
-template <typename T, typename U>                       \
-M<U> operator >> (M<T> ma, std::function<M<U>(T)> f) {  \
-    return Monad<M>::mbind(ma, f);                      \
-}                                                       \
-
-
-template <template <typename> class M, typename T, typename U>
-using binder_t = std::function<M<U>(T)>;
-
-template <template <typename> class M>
-struct Monad {
-    template <typename T>
-    static M<T> mreturn(T);
-
-    template <typename T, typename U>
-    static M<U> mbind(M<T>, binder_t<M, T, U>);
-};
+#include "./thread-log.h"
 
 template <typename T>
 using Task = std::function<void(std::function<void(T)>)>;
@@ -127,14 +110,6 @@ binder_t<Task, T, T> tap(std::function<void(T)> callback) {
         callback(t);
         return Monad<Task>::mreturn(t);
     };
-}
-
-template <typename Arg, typename ...Args>
-void threadLog(Arg&& arg, Args&&... args) {
-    std::cout << "[Thread " << std::this_thread::get_id() << "]: ";
-    std::cout << std::forward<Arg>(arg);
-    ((std::cout << ", " << std::forward<Args>(args)), ...);
-    std::cout << std::endl;
 }
 
 class TRunner {
