@@ -45,6 +45,21 @@ void Tasks3Demo::run() {
     threadLog("Run task3");
     task3.run(threadLog<int>);
 
+    // Retries
+    auto task4 = Task<int>([](Handler<int> handler) {
+        threadLog("Kickoff task4");
+        handler(0);
+    }).DelayedFor(delayer, 3000);
+
+    auto task5 = Task<int>([](Handler<int> handler) {
+        threadLog("Kickoff task5");
+        handler(1);
+    }).DelayedFor(delayer, 1000);
+
+    auto task6 = task4.Or(task5);
+
+    task6.run(threadLog<int>);
+
     // Join all threads
     runner.join();
 }

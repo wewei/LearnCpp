@@ -54,6 +54,12 @@ public:
         });
     }
 
+    Task<T> Or(Task<T> task) const {
+        return Then<T>([task](T t) {
+            return t ? Task<T>::Resolve(t) : task;
+        });
+    }
+
 public:
     static Task<T> Resolve(T t) {
         return Task<T>([t](Handler<T> handler) {
