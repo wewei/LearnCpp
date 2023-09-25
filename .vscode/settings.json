@@ -66,6 +66,7 @@
         "concepts": "cpp",
         "algorithm": "cpp",
         "format": "cpp",
-        "charconv": "cpp"
+        "charconv": "cpp",
+        "iomanip": "cpp"
     }
 }

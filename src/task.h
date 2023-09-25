@@ -1,77 +1,73 @@
 #pragma once
+#include <concepts>
 #include <functional>
 
-template <typename T>
-using Handler = std::function<void(const T &)>;
-
-template <typename T>
-using TaskCallback = Handler<Handler<T>>;
-
-template <typename T>
-using Delayer = std::function<Handler<T>(int, Handler<T>)>;
-
-typedef std::function<void(int, std::function<void()>)> DelayedRunner;
-
-template <typename T>
+template <template <typename> class Func, typename T>
 class Task {
 public:
     template <typename U>
-    using Binder = std::function<Task<U>(const T &)>;
+    using Binder = Func<Task<Func, U>(const T &)>;
+
+    using Handler = Func<void(const T &)>;
+
+    using TaskCallback = Func<void(const Handler &)>;
+
+    using DelayedRunner = Func<void(int, Func<void()>)>;
 
 private:
-    TaskCallback<T> callback_;
+    TaskCallback callback_;
 public:
     // Constructors
-    Task(const TaskCallback<T> &callback): callback_(callback) { }
+    Task(TaskCallback &&callback): callback_(std::move(callback)) { }
 
-    void Run(const Handler<T> &handler) const {
+    void Run(const Handler &handler) const {
         callback_(handler);
     }
 
-    void operator() (const Handler<T> &handler) const {
+    void operator() (const Handler &handler) const {
         callback_(handler);
     }
 
     template <typename U>
-    Task<U> Then(const Binder<U> &binder) const {
-        return Task<U>([callback=this->callback_, binder](const Handler<U> &handler) {
+    Task<Func, U> Then(const Binder<U> &binder) const {
+        return Task<Func, U>([callback=this->callback_, binder](const Handler &handler) {
             callback([binder, handler](const T &t) { binder(t).Run(handler); });
         });
     }
 
-    Task<T> Tap(const Handler<T> &handler) const {
+    Task<Func, T> Tap(const Handler &handler) const {
         return this->Then([handler](const T &t) {
             handler(t);
-            return Task<T>::Resolve(t);
+            return Task<Func, T>::Resolve(t);
         });
     }
 
-    Task<T> DelayedFor(const DelayedRunner &runner, int ms) const {
-        return Task<T>([callback = this->callback_, runner, ms](const Handler<T> &handler) {
+    Task<Func, T> DelayedFor(const DelayedRunner &runner, int ms) const {
+        return Task<Func, T>([callback = this->callback_, runner, ms](const Handler &handler) {
             runner(ms, [callback, handler]() {
                 callback(handler);
             });
         });
     }
 
-    Task<T> ThenDelayFor(const DelayedRunner &runner, int ms) const {
-        return Task<T>([callback = this->callback_, runner, ms](const Handler<T> &handler) {
+    Task<Func, T> ThenDelayFor(const DelayedRunner &runner, int ms) const {
+        return Task<Func, T>([callback = this->callback_, runner, ms](const Handler &handler) {
             callback([runner, ms, handler](const T &t) {
                 runner(ms, [handler, t]() { handler(t); });
             });
         });
     }
 
-    Task<T> Or(const Task<T> &task) const {
+    Task<Func, T> Or(const Task<Func, T> &task) const {
         return Then<T>([task](const T &t) {
-            return t ? Task<T>::Resolve(t) : task;
+            return t ? Task<Func, T>::Resolve(t) : task;
         });
     }
 
 public:
-    static Task<T> Resolve(const T &t) {
-        return Task<T>([t](const Handler<T> &handler) {
+    static Task<Func, T> Resolve(const T &t) {
+        return Task<Func, T>(std::move([t = std::move(t)](const Handler &handler) {
             handler(t);
-        });
+        }));
     }
 };
