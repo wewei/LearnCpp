@@ -1,9 +1,9 @@
 #include "./threaded-runner.h"
 #include "./thread-log.h"
 
-void ThreadedRunner::delay(int ms, std::function<void()> callback) {
-    threads.push_back(std::thread([=]() {
-        threadLog("Thread started");
+void ThreadedRunner::delay(int ms, std::function<void()> &&callback) {
+    threads.push_back(std::thread([ms, callback = std::move(callback)]() {
+        // threadLog("Thread started");
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         callback();
     }));

@@ -16,6 +16,7 @@ struct Result {
     Result(Result &&r) {
         threadLog("Moving", r);
         value_ = r.value_;
+        r.value_ = std::nullopt;
     }
 
     explicit operator bool() const {
@@ -46,15 +47,15 @@ using Hdl = typename Tk<T>::Handler;
 
 void Tasks3Demo::run() {
     ThreadedRunner threadedRunner;
-    auto runner = [&threadedRunner](int ms, std::function<void()> callback) {
-        threadedRunner.delay(ms, callback);
+    auto runner = [&threadedRunner](int ms, std::function<void()> &&callback) {
+        threadedRunner.delay(ms, std::move(callback));
     };
 
     f(Result(357));
 
     Result r(7);
     // Task 0
-    auto task0 = Tk<Result>::Resolve(std::move(r));
+    auto task0 = Tk<Result>::Resolve(r);
 
     threadLog("Run task0");
     task0.Run(threadLog<const Result &>);
@@ -69,31 +70,45 @@ void Tasks3Demo::run() {
     task1.Run(threadLog<const Result &>);
 
     // Task 2
+    threadLog("Define task2");
     auto task2 = task1.DelayedFor(runner, 1000);
 
     threadLog("Run task2");
     task2.Run(threadLog<const Result &>);
 
     // Task 3
+    threadLog("Define task3");
     auto task3 = task1.ThenDelayFor(runner, 2000);
 
     threadLog("Run task3");
     task3.Run(threadLog<const Result &>);
 
     // Retries
+    threadLog("Define task4");
     auto task4 = Tk<Result>([](const Hdl<Result> &handler) {
         threadLog("Kickoff task4");
         handler(Result());
     }).DelayedFor(runner, 3000);
 
+    threadLog("Define task5");
     auto task5 = Tk<Result>([](const Hdl<Result> &handler) {
         threadLog("Kickoff task5");
         handler(1);
     }).DelayedFor(runner, 1000);
 
+    threadLog("Define task6");
     auto task6 = task4.Or(task5);
 
+    threadLog("Run task6");
     task6.Run(threadLog<const Result &>);
+
+    threadLog("Define task7");
+    auto task7 = task1.Then<bool>([](const Result &r) {
+        threadLog("Deriving task7");
+        return Tk<bool>::Resolve((bool)r);
+    });
+
+    task7.Run(threadLog<const bool &>);
 
     // Join all threads
     threadedRunner.join();
